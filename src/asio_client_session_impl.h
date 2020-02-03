@@ -47,7 +47,7 @@ public:
                const boost::posix_time::time_duration &connect_timeout);
   virtual ~session_impl();
 
-  void start_resolve(const std::string &host, const std::string &service);
+  void start_resolve(const std::string &host, const std::string &service, boost::optional<timing_cb> dns_cb);
 
   void connected(tcp::resolver::iterator endpoint_it);
   void not_connected(const boost::system::error_code &ec);

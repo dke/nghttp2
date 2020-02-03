@@ -38,53 +38,43 @@ namespace client {
 using boost::asio::ip::tcp;
 
 session::session(boost::asio::io_service &io_service, const std::string &host,
-                 const std::string &service)
-    : impl_(std::make_shared<session_tcp_impl>(
-          io_service, host, service, boost::posix_time::seconds(60))) {
-  impl_->start_resolve(host, service);
-}
-
-session::session(boost::asio::io_service &io_service,
-                 const boost::asio::ip::tcp::endpoint &local_endpoint,
-                 const std::string &host, const std::string &service)
-    : impl_(std::make_shared<session_tcp_impl>(
-          io_service, local_endpoint, host, service,
-          boost::posix_time::seconds(60))) {
-  impl_->start_resolve(host, service);
-}
-
-session::session(boost::asio::io_service &io_service, const std::string &host,
                  const std::string &service,
-                 const boost::posix_time::time_duration &connect_timeout)
+                 const boost::posix_time::time_duration &connect_timeout,
+                 boost::optional<timing_cb> dns_cb, boost::optional<timing_cb> tcp_cb)
     : impl_(std::make_shared<session_tcp_impl>(io_service, host, service,
-                                               connect_timeout)) {
-  impl_->start_resolve(host, service);
+                                               connect_timeout, tcp_cb)) {
+  impl_->start_resolve(host, service, dns_cb);
 }
 
 session::session(boost::asio::io_service &io_service,
                  const boost::asio::ip::tcp::endpoint &local_endpoint,
                  const std::string &host, const std::string &service,
-                 const boost::posix_time::time_duration &connect_timeout)
+                 const boost::posix_time::time_duration &connect_timeout,
+                 boost::optional<timing_cb> dns_cb, boost::optional<timing_cb> tcp_cb)
     : impl_(std::make_shared<session_tcp_impl>(io_service, local_endpoint, host,
-                                               service, connect_timeout)) {
-  impl_->start_resolve(host, service);
-}
-
-session::session(boost::asio::io_service &io_service,
-                 boost::asio::ssl::context &tls_ctx, const std::string &host,
-                 const std::string &service)
-    : impl_(std::make_shared<session_tls_impl>(
-          io_service, tls_ctx, host, service, boost::posix_time::seconds(60))) {
-  impl_->start_resolve(host, service);
+                                               service, connect_timeout, tcp_cb)) {
+  impl_->start_resolve(host, service, dns_cb);
 }
 
 session::session(boost::asio::io_service &io_service,
                  boost::asio::ssl::context &tls_ctx, const std::string &host,
                  const std::string &service,
-                 const boost::posix_time::time_duration &connect_timeout)
+                 const boost::posix_time::time_duration &connect_timeout,
+                 boost::optional<timing_cb> dns_cb, boost::optional<timing_cb> tcp_cb, boost::optional<timing_cb> tls_cb)
     : impl_(std::make_shared<session_tls_impl>(io_service, tls_ctx, host,
-                                               service, connect_timeout)) {
-  impl_->start_resolve(host, service);
+                                               service, connect_timeout, tcp_cb, tls_cb)) {
+  impl_->start_resolve(host, service, dns_cb);
+}
+
+session::session(boost::asio::io_service &io_service,
+                 const boost::asio::ip::tcp::endpoint &local_endpoint,
+                 boost::asio::ssl::context &tls_ctx, const std::string &host,
+                 const std::string &service,
+                 const boost::posix_time::time_duration &connect_timeout,
+                 boost::optional<timing_cb> dns_cb, boost::optional<timing_cb> tcp_cb, boost::optional<timing_cb> tls_cb)
+    : impl_(std::make_shared<session_tls_impl>(io_service, local_endpoint, tls_ctx, host,
+                                               service, connect_timeout, tcp_cb, tls_cb)) {
+  impl_->start_resolve(host, service, dns_cb);
 }
 
 session::~session() {}
@@ -138,6 +128,13 @@ const request *session::submit(boost::system::error_code &ec,
 
 void session::read_timeout(const boost::posix_time::time_duration &t) {
   impl_->read_timeout(t);
+}
+
+SSL *session::tls_native_handle() {
+  if(session_tls_impl* i=dynamic_cast<session_tls_impl*>(impl_.get())) {
+    return i->native_handle();
+  }
+  return nullptr;
 }
 
 priority_spec::priority_spec(const int32_t stream_id, const int32_t weight,

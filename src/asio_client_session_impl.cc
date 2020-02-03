@@ -67,18 +67,21 @@ session_impl::~session_impl() {
 }
 
 void session_impl::start_resolve(const std::string &host,
-                                 const std::string &service) {
+                                 const std::string &service,
+                                 boost::optional<timing_cb> dns_cb) {
   deadline_.expires_from_now(connect_timeout_);
 
   auto self = shared_from_this();
 
   resolver_.async_resolve({host, service},
-                          [self](const boost::system::error_code &ec,
+                          [self, dns_cb](const boost::system::error_code &ec,
                                  tcp::resolver::iterator endpoint_it) {
                             if (ec) {
                               self->not_connected(ec);
                               return;
                             }
+
+                            if(dns_cb) (*dns_cb)();
 
                             self->start_connect(endpoint_it);
                           });

@@ -31,15 +31,17 @@ namespace client {
 session_tcp_impl::session_tcp_impl(
     boost::asio::io_service &io_service, const std::string &host,
     const std::string &service,
-    const boost::posix_time::time_duration &connect_timeout)
-    : session_impl(io_service, connect_timeout), socket_(io_service) {}
+    const boost::posix_time::time_duration &connect_timeout,
+    boost::optional<timing_cb> tcp_cb)
+    : session_impl(io_service, connect_timeout), socket_(io_service), tcp_cb(tcp_cb) {}
 
 session_tcp_impl::session_tcp_impl(
     boost::asio::io_service &io_service,
     const boost::asio::ip::tcp::endpoint &local_endpoint,
     const std::string &host, const std::string &service,
-    const boost::posix_time::time_duration &connect_timeout)
-    : session_impl(io_service, connect_timeout), socket_(io_service) {
+    const boost::posix_time::time_duration &connect_timeout,
+    boost::optional<timing_cb> tcp_cb)
+    : session_impl(io_service, connect_timeout), socket_(io_service), tcp_cb(tcp_cb) {
   socket_.open(local_endpoint.protocol());
   boost::asio::socket_base::reuse_address option(true);
   socket_.set_option(option);
@@ -49,7 +51,7 @@ session_tcp_impl::session_tcp_impl(
 session_tcp_impl::~session_tcp_impl() {}
 
 void session_tcp_impl::start_connect(tcp::resolver::iterator endpoint_it) {
-  auto self = shared_from_this();
+  auto self = std::static_pointer_cast<session_tcp_impl>(shared_from_this());
   socket_.async_connect(
       *endpoint_it, [self, endpoint_it](const boost::system::error_code &ec) {
         if (self->stopped()) {
@@ -60,6 +62,8 @@ void session_tcp_impl::start_connect(tcp::resolver::iterator endpoint_it) {
           self->not_connected(ec);
           return;
         }
+
+        if(self->tcp_cb) (*self->tcp_cb)();
 
         self->connected(endpoint_it);
       });

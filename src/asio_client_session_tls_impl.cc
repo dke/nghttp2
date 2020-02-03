@@ -32,8 +32,28 @@ namespace client {
 session_tls_impl::session_tls_impl(
     boost::asio::io_service &io_service, boost::asio::ssl::context &tls_ctx,
     const std::string &host, const std::string &service,
-    const boost::posix_time::time_duration &connect_timeout)
-    : session_impl(io_service, connect_timeout), socket_(io_service, tls_ctx) {
+    const boost::posix_time::time_duration &connect_timeout,
+    boost::optional<timing_cb> tcp_cb, boost::optional<timing_cb> tls_cb)
+    : session_impl(io_service, connect_timeout), socket_(io_service, tls_ctx),
+      tcp_cb(tcp_cb), tls_cb(tls_cb) {
+  // this callback setting is no effect is
+  // ssl::context::set_verify_mode(boost::asio::ssl::verify_peer) is
+  // not used, which is what we want.
+  socket_.set_verify_callback(boost::asio::ssl::rfc2818_verification(host));
+  auto ssl = socket_.native_handle();
+  if (!util::numeric_host(host.c_str())) {
+    SSL_set_tlsext_host_name(ssl, host.c_str());
+  }
+}
+
+session_tls_impl::session_tls_impl(
+    boost::asio::io_service &io_service,
+    const boost::asio::ip::tcp::endpoint &local_endpoint, boost::asio::ssl::context &tls_ctx,
+    const std::string &host, const std::string &service,
+    const boost::posix_time::time_duration &connect_timeout,
+    boost::optional<timing_cb> tcp_cb, boost::optional<timing_cb> tls_cb)
+    : session_impl(io_service, connect_timeout), socket_(std::move(boost::asio::ip::tcp::socket(io_service, local_endpoint)), tls_ctx),
+      tcp_cb(tcp_cb), tls_cb(tls_cb) {
   // this callback setting is no effect is
   // ssl::context::set_verify_mode(boost::asio::ssl::verify_peer) is
   // not used, which is what we want.
@@ -61,6 +81,8 @@ void session_tls_impl::start_connect(tcp::resolver::iterator endpoint_it) {
           return;
         }
 
+        if(self->tcp_cb) (*self->tcp_cb)();
+
         self->socket_.async_handshake(
             boost::asio::ssl::stream_base::client,
             [self, endpoint_it](const boost::system::error_code &ec) {
@@ -79,12 +101,16 @@ void session_tls_impl::start_connect(tcp::resolver::iterator endpoint_it) {
                 return;
               }
 
+              if(self->tls_cb) (*self->tls_cb)();
+
               self->connected(endpoint_it);
             });
       });
 }
 
 tcp::socket &session_tls_impl::socket() { return socket_.next_layer(); }
+
+SSL *session_tls_impl::native_handle() { return socket_.native_handle(); }
 
 void session_tls_impl::read_socket(
     std::function<void(const boost::system::error_code &ec, std::size_t n)> h) {

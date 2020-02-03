@@ -25,6 +25,7 @@
 #ifndef ASIO_HTTP2_CLIENT_H
 #define ASIO_HTTP2_CLIENT_H
 
+#include <boost/optional.hpp>
 #include <nghttp2/asio_http2.h>
 
 namespace nghttp2 {
@@ -64,6 +65,7 @@ private:
 
 class request;
 
+using timing_cb = std::function<void()>;
 using response_cb = std::function<void(const response &)>;
 using request_cb = std::function<void(const request &)>;
 using connect_cb =
@@ -144,36 +146,21 @@ class session_impl;
 
 class session {
 public:
-  // Starts HTTP/2 session by connecting to |host| and |service|
-  // (e.g., "80") using clear text TCP connection with connect timeout
-  // 60 seconds.
-  session(boost::asio::io_service &io_service, const std::string &host,
-          const std::string &service);
-
-  // Same as previous but with pegged local endpoint
-  session(boost::asio::io_service &io_service,
-          const boost::asio::ip::tcp::endpoint &local_endpoint,
-          const std::string &host, const std::string &service);
 
   // Starts HTTP/2 session by connecting to |host| and |service|
   // (e.g., "80") using clear text TCP connection with given connect
   // timeout.
   session(boost::asio::io_service &io_service, const std::string &host,
           const std::string &service,
-          const boost::posix_time::time_duration &connect_timeout);
+          const boost::posix_time::time_duration &connect_timeout=boost::posix_time::seconds(60),
+          boost::optional<timing_cb> dns_cb=boost::none, boost::optional<timing_cb> tcp_cb=boost::none);
 
   // Same as previous but with pegged local endpoint
   session(boost::asio::io_service &io_service,
           const boost::asio::ip::tcp::endpoint &local_endpoint,
           const std::string &host, const std::string &service,
-          const boost::posix_time::time_duration &connect_timeout);
-
-  // Starts HTTP/2 session by connecting to |host| and |service|
-  // (e.g., "443") using encrypted SSL/TLS connection with connect
-  // timeout 60 seconds.
-  session(boost::asio::io_service &io_service,
-          boost::asio::ssl::context &tls_context, const std::string &host,
-          const std::string &service);
+          const boost::posix_time::time_duration &connect_timeout=boost::posix_time::seconds(60),
+          boost::optional<timing_cb> dns_cb=boost::none, boost::optional<timing_cb> tcp_cb=boost::none);
 
   // Starts HTTP/2 session by connecting to |host| and |service|
   // (e.g., "443") using encrypted SSL/TLS connection with given
@@ -181,7 +168,16 @@ public:
   session(boost::asio::io_service &io_service,
           boost::asio::ssl::context &tls_context, const std::string &host,
           const std::string &service,
-          const boost::posix_time::time_duration &connect_timeout);
+          const boost::posix_time::time_duration &connect_timeout=boost::posix_time::seconds(60),
+          boost::optional<timing_cb> dns_cb=boost::none, boost::optional<timing_cb> tcp_cb=boost::none, boost::optional<timing_cb> tls_cb=boost::none);
+
+  // Same as previous but with pegged local endpoint
+  session(boost::asio::io_service &io_service,
+          const boost::asio::ip::tcp::endpoint &local_endpoint,
+          boost::asio::ssl::context &tls_context, const std::string &host,
+          const std::string &service,
+          const boost::posix_time::time_duration &connect_timeout=boost::posix_time::seconds(60),
+          boost::optional<timing_cb> dns_cb=boost::none, boost::optional<timing_cb> tcp_cb=boost::none, boost::optional<timing_cb> tls_cb=boost::none);
 
   ~session();
 
@@ -233,6 +229,7 @@ public:
                         generator_cb cb, header_map h = header_map{},
                         priority_spec prio = priority_spec()) const;
 
+  SSL *tls_native_handle();
 private:
   std::shared_ptr<session_impl> impl_;
 };

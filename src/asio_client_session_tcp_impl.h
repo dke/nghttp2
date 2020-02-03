@@ -36,14 +36,17 @@ namespace client {
 using boost::asio::ip::tcp;
 
 class session_tcp_impl : public session_impl {
+  boost::optional<timing_cb> tcp_cb;
 public:
   session_tcp_impl(boost::asio::io_service &io_service, const std::string &host,
                    const std::string &service,
-                   const boost::posix_time::time_duration &connect_timeout);
+                   const boost::posix_time::time_duration &connect_timeout,
+                   boost::optional<timing_cb> tcp_cb);
   session_tcp_impl(boost::asio::io_service &io_service,
                    const boost::asio::ip::tcp::endpoint &local_endpoint,
                    const std::string &host, const std::string &service,
-                   const boost::posix_time::time_duration &connect_timeout);
+                   const boost::posix_time::time_duration &connect_timeout,
+                   boost::optional<timing_cb> tcp_cb);
   virtual ~session_tcp_impl();
 
   virtual void start_connect(tcp::resolver::iterator endpoint_it);

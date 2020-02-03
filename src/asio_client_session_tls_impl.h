@@ -27,6 +27,7 @@
 
 #include "asio_client_session_impl.h"
 
+#include <boost/optional.hpp>
 #include <nghttp2/asio_http2_client.h>
 
 namespace nghttp2 {
@@ -38,15 +39,26 @@ using boost::asio::ip::tcp;
 using ssl_socket = boost::asio::ssl::stream<tcp::socket>;
 
 class session_tls_impl : public session_impl {
+  boost::optional<timing_cb> tcp_cb;
+  boost::optional<timing_cb> tls_cb;
 public:
   session_tls_impl(boost::asio::io_service &io_service,
                    boost::asio::ssl::context &tls_ctx, const std::string &host,
                    const std::string &service,
-                   const boost::posix_time::time_duration &connect_timeout);
+                   const boost::posix_time::time_duration &connect_timeout,
+                   boost::optional<timing_cb> tcp_cb, boost::optional<timing_cb> tls_cb);
+  session_tls_impl(boost::asio::io_service &io_service,
+                   const boost::asio::ip::tcp::endpoint &local_endpoint,
+                   boost::asio::ssl::context &tls_ctx, const std::string &host,
+                   const std::string &service,
+                   const boost::posix_time::time_duration &connect_timeout,
+                   boost::optional<timing_cb> tcp_cb, boost::optional<timing_cb> tls_cb);
+
   virtual ~session_tls_impl();
 
   virtual void start_connect(tcp::resolver::iterator endpoint_it);
   virtual tcp::socket &socket();
+  virtual SSL* native_handle();
   virtual void read_socket(
       std::function<void(const boost::system::error_code &ec, std::size_t n)>
           h);
