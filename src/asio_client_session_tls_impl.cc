@@ -52,8 +52,13 @@ session_tls_impl::session_tls_impl(
     const std::string &host, const std::string &service,
     const boost::posix_time::time_duration &connect_timeout,
     boost::optional<timing_cb> tcp_cb, boost::optional<timing_cb> tls_cb)
-    : session_impl(io_service, connect_timeout), socket_(std::move(boost::asio::ip::tcp::socket(io_service, local_endpoint)), tls_ctx),
+    : session_impl(io_service, connect_timeout), socket_(io_service, tls_ctx),
       tcp_cb(tcp_cb), tls_cb(tls_cb) {
+  // cf asio_client_session_tcp_impl
+  socket_.next_layer().open(local_endpoint.protocol());
+  boost::asio::socket_base::reuse_address option(true);
+  socket_.next_layer().set_option(option);
+  socket_.next_layer().bind(local_endpoint);
   // this callback setting is no effect is
   // ssl::context::set_verify_mode(boost::asio::ssl::verify_peer) is
   // not used, which is what we want.
