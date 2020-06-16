@@ -139,6 +139,10 @@ SSL *session::tls_native_handle() {
   return nullptr;
 }
 
+bool session::stopped() const {
+  return impl_->stopped();
+}
+
 priority_spec::priority_spec(const int32_t stream_id, const int32_t weight,
                              const bool exclusive)
     : valid_(true) {

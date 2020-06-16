@@ -230,6 +230,8 @@ public:
                         priority_spec prio = priority_spec()) const;
 
   SSL *tls_native_handle();
+
+  bool stopped() const;
 private:
   std::shared_ptr<session_impl> impl_;
 };
