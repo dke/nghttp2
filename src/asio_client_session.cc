@@ -131,8 +131,10 @@ void session::read_timeout(const boost::posix_time::time_duration &t) {
 }
 
 SSL *session::tls_native_handle() {
-  if(session_tls_impl* i=dynamic_cast<session_tls_impl*>(impl_.get())) {
-    return i->native_handle();
+  session_impl * bi = impl_.get();
+  session_tls_impl* ti = dynamic_cast<session_tls_impl*>(bi);
+  if(ti) {
+    return ti->native_handle();
   }
   return nullptr;
 }
